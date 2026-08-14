@@ -2092,6 +2092,84 @@ function buildWeaponArt(){
   }),
   ];
 }
+/* Pistolet : viewmodel animé — recul de culasse, chien qui s'arme,
+   douille éjectée, tenue légèrement désaxée. */
+function drawPistolVM(bob,bob2){
+  const t=P.fireT;
+  const rec=t<.1?(1-t/.1)*34:0;
+  const slide=t<.11?Math.sin((1-t/.11)*Math.PI*.9)*15:0; // recul de culasse
+  const cocked=t<.55;                                     // chien armé juste après le tir
+  sctx.translate(494+bob,600+bob2+rec);
+  sctx.rotate(.055);
+  sctx.scale(1.42,1.42);
+  const blk='#0b0d12', mid='#262a33', hi='rgba(240,244,250,.85)';
+  // flash de bouche au sommet
+  if(t<.06){
+    const fy=-232;
+    const g=sctx.createRadialGradient(0,fy,3,0,fy,40);
+    g.addColorStop(0,'rgba(255,250,210,.98)'); g.addColorStop(.4,'rgba(255,180,50,.8)');
+    g.addColorStop(1,'rgba(255,120,20,0)');
+    sctx.fillStyle=g; sctx.beginPath(); sctx.arc(0,fy,40,0,7); sctx.fill();
+    sctx.fillStyle='rgba(255,235,160,.9)'; sctx.beginPath();
+    for(let i=0;i<10;i++){ const a=i*Math.PI/5+.3, r1=i%2?36:12;
+      sctx.lineTo(Math.cos(a)*r1,fy+Math.sin(a)*r1); }
+    sctx.fill();
+  }
+  // manche de l'uniforme au poignet
+  sctx.fillStyle='#141a2e'; sctx.beginPath();
+  sctx.moveTo(-8,4); sctx.lineTo(64,4); sctx.lineTo(50,-52); sctx.lineTo(8,-46); sctx.fill();
+  sctx.fillStyle='#0e1322'; sctx.fillRect(2,-52,50,9);
+  // canon fixe (visible dans la fenêtre quand la culasse recule)
+  if(slide>2){ sctx.fillStyle='#3a3f49'; sctx.beginPath();
+    sctx.roundRect(-8,-220,16,30,5); sctx.fill();
+    sctx.fillStyle='rgba(255,190,80,.5)'; sctx.fillRect(-6,-216,12,4); }
+  // groupe culasse (recule de `slide`)
+  sctx.save(); sctx.translate(0,slide);
+  sctx.fillStyle=blk; sctx.beginPath();
+  sctx.moveTo(-17,-96); sctx.lineTo(-13,-208); sctx.lineTo(-5,-224);
+  sctx.lineTo(6,-224); sctx.lineTo(13,-206); sctx.lineTo(19,-96); sctx.fill();
+  sctx.fillStyle='#000'; sctx.beginPath(); sctx.ellipse(0,-223,6,3,0,0,7); sctx.fill();
+  sctx.fillStyle=mid; sctx.beginPath(); sctx.ellipse(0,-225,6,2.2,0,0,7); sctx.fill();
+  sctx.fillStyle=hi; sctx.beginPath();
+  sctx.moveTo(-13,-100); sctx.lineTo(-10,-204); sctx.lineTo(-7,-204); sctx.lineTo(-9,-100); sctx.fill();
+  sctx.fillStyle='rgba(180,190,205,.35)'; sctx.beginPath();
+  sctx.moveTo(8,-110); sctx.lineTo(6,-196); sctx.lineTo(10,-196); sctx.lineTo(13,-110); sctx.fill();
+  sctx.fillStyle=steelGrad(sctx,-20,0,20,0); sctx.beginPath(); sctx.roundRect(-20,-102,40,26,5); sctx.fill();
+  sctx.fillStyle='#08090c';
+  for(let x=-16;x<=13;x+=6) sctx.fillRect(x,-99,3,20);
+  sctx.fillStyle='#101318'; sctx.fillRect(-19,-108,12,7); sctx.fillRect(7,-108,12,7);
+  sctx.fillStyle='rgba(240,244,250,.6)'; sctx.fillRect(-16,-107,3,2); sctx.fillRect(13,-107,3,2);
+  sctx.restore();
+  // douille éjectée
+  if(t>.02&&t<.3){
+    const k=(t-.02)/.28;
+    sctx.save();
+    sctx.translate(26+k*150,-150-120*k+520*k*k);
+    sctx.rotate(k*9);
+    sctx.fillStyle='#d8b25a'; sctx.fillRect(-6,-3,12,6);
+    sctx.fillStyle='#8a6a2a'; sctx.fillRect(4,-3,3,6);
+    sctx.restore();
+  }
+  // chien : armé (plaqué) ou reposé (spur visible)
+  sctx.fillStyle='#14161c';
+  if(cocked){ sctx.beginPath();
+    sctx.moveTo(-8,-74); sctx.lineTo(8,-74); sctx.lineTo(10,-66); sctx.lineTo(-10,-66); sctx.fill();
+    sctx.fillStyle='#000'; sctx.fillRect(-5,-72,10,4);
+  } else { sctx.beginPath();
+    sctx.moveTo(-7,-76); sctx.lineTo(7,-76); sctx.lineTo(10,-62); sctx.lineTo(4,-56);
+    sctx.lineTo(-4,-56); sctx.lineTo(-10,-62); sctx.fill();
+    sctx.fillStyle='#000'; sctx.beginPath(); sctx.ellipse(0,-68,4,6,0,0,7); sctx.fill(); }
+  // carcasse arrière + poing ganté
+  sctx.fillStyle='#15181f'; sctx.beginPath(); sctx.roundRect(-16,-58,32,16,4); sctx.fill();
+  sctx.fillStyle='rgba(240,244,250,.25)'; sctx.fillRect(-14,-56,4,10);
+  sctx.fillStyle='#1c2337'; sctx.beginPath(); sctx.roundRect(-24,-46,52,42,16); sctx.fill();
+  sctx.fillStyle='#28324e';
+  for(let i=0;i<4;i++){ sctx.beginPath();
+    sctx.ellipse(-13+i*12,-34,6.4,10,0,0,7); sctx.fill(); }
+  sctx.fillStyle='rgba(0,0,0,.3)'; sctx.fillRect(-24,-18,52,6);
+  sctx.fillStyle='#202a44'; sctx.beginPath(); sctx.ellipse(-22,-30,8,14,.5,0,7); sctx.fill();
+  sctx.fillStyle='#0e1014'; sctx.beginPath(); sctx.roundRect(-13,-6,30,10,3); sctx.fill();
+}
 /* Fusil à deux coups : viewmodel dessiné image par image — tir des deux canons,
    puis bascule ouverte face au joueur, insertion des cartouches, fermeture. */
 function drawDoubleBarrel(bob,bob2){
@@ -2199,6 +2277,7 @@ function drawWeapon(){
     sctx.restore();
     return;
   }
+  if(P.weapon===1){ drawPistolVM(bob,bob2); sctx.restore(); return; }
   if(P.weapon===2){ drawDoubleBarrel(bob,bob2); sctx.restore(); return; }
   const ox=480-cv.width*S/2+bob, oy=600-(cv.height-(art.peek??34))*S+bob2+rec;
   if(P.fireT<.07){ // flash de bouche : cœur + étoile
