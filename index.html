@@ -14,7 +14,7 @@
   #hint b{color:#F5C518;font-weight:600}
 </style>
 <div id="wrap"><canvas id="s" width="960" height="600"></canvas></div>
-<div id="hint"><b>ZQSD/WASD</b> se déplacer · <b>souris</b> viser · <b>clic</b> tirer · <b>1-4</b> armes · <b>Tab</b> plan · <b>Maj</b> courir · <b>P</b> HD/SD</div>
+<div id="hint"><b>ZQSD/WASD</b> se déplacer · <b>fn+←/→</b> pas latéral · <b>clic</b> tirer · <b>1-4</b> armes · <b>Tab</b> plan · <b>Maj</b> courir · <b>P</b> HD/SD</div>
 <script>
 'use strict';
 /* ==================== DERNIER MÉTRO ====================
@@ -408,6 +408,18 @@ SPR={
     g.fillStyle='#F5C518'; g.font='bold 10px Arial'; g.textAlign='center';
     g.fillText('MUN.',32,47);
   }),
+  vial:mkSpr(g=>{ // fiole de vitalité
+    const glow=g.createRadialGradient(32,40,2,32,40,20);
+    glow.addColorStop(0,'rgba(255,80,90,.5)'); glow.addColorStop(1,'rgba(255,80,90,0)');
+    g.fillStyle=glow; g.beginPath(); g.arc(32,40,20,0,7); g.fill();
+    g.fillStyle='rgba(210,225,235,.9)';
+    g.beginPath(); g.roundRect(25,28,14,26,5); g.fill();
+    g.fillStyle='#d61f30'; g.beginPath(); g.roundRect(27,36,10,16,4); g.fill();
+    g.fillStyle='#ff8a92'; g.fillRect(28,38,3,10);
+    g.fillStyle='#8a5a2b'; g.fillRect(27,22,10,7);
+    g.fillStyle='#6e4620'; g.fillRect(27,22,10,2);
+    g.fillStyle='rgba(255,255,255,.7)'; g.fillRect(26,30,2,20);
+  }),
   navigo:mkSpr(g=>{
     g.fillStyle='#efeff4'; g.beginPath(); g.roundRect(14,24,36,26,4); g.fill();
     g.fillStyle='#6b3fa0'; g.beginPath(); g.arc(40,37,8,0,7); g.fill();
@@ -442,11 +454,12 @@ const MONSTERS={
 };
 
 /* ---------- armes ---------- */
+/* armes précises : dispersion de base très faible, qui s'ouvre en tir soutenu (bloom) */
 const WEAPONS=[
   {name:'CLÉ DE SERVICE', melee:true, dmg:26, range:1.7, cool:.5},
-  {name:'PISTOLET RÉGLEMENTAIRE', ammo:'bullets', dmg:14, pellets:1, spread:.02, cool:.34},
-  {name:'FUSIL À POMPE', ammo:'shells', dmg:7, pellets:6, spread:.14, cool:.9, flag:'hasShotgun'},
-  {name:'PM DE LA SÛRETÉ', ammo:'bullets', dmg:8, pellets:1, spread:.05, cool:.09, flag:'hasSMG'},
+  {name:'PISTOLET RÉGLEMENTAIRE', ammo:'bullets', dmg:14, pellets:1, spread:.004, bloom:1, cool:.34},
+  {name:'FUSIL À POMPE', ammo:'shells', dmg:7, pellets:6, spread:.09, bloom:.3, cool:.9, flag:'hasShotgun'},
+  {name:'PM DE LA SÛRETÉ', ammo:'bullets', dmg:8, pellets:1, spread:.018, bloom:.45, cool:.09, flag:'hasSMG'},
 ];
 
 /* ---------- niveaux : plans réels reconstitués depuis les modèles 3D ---------- */
@@ -1294,7 +1307,7 @@ const WALLCODE={'#':1,'S':2,'P':3,'T':4,'A':5,'G':6,'X':7,'B':8,'D':9};
 
 /* ---------- état du jeu ---------- */
 const P={x:0,y:0,dx:1,dy:0,px:0,py:FOV_PLANE,hp:100,bullets:40,shells:0,
-  hasShotgun:false,hasSMG:false,hasNavigo:false,weapon:1,cool:0,fireT:9,bob:0,hurtT:0,pickT:0};
+  hasShotgun:false,hasSMG:false,hasNavigo:false,weapon:1,cool:0,fireT:9,bob:0,hurtT:0,pickT:0,bloom:0};
 let level=0, grid=null, MW=0, MH=0, TEX=null, FLOORT=null, CEILT=null;
 let fh=null, ch=null;                       // hauteurs sol / plafond par cellule (unités mur)
 let TEXTUNNEL=null, TEXTRAINOPEN=null;
@@ -1341,6 +1354,7 @@ function loadLevel(idx){
     }
   }
   totalEnemies=enemies.length;
+  placeVials();
   buildTrainGroups();
   rebuildTex(); buildSprites(L.agent);
   let bestA=0,bestD=-1;
@@ -1349,6 +1363,27 @@ function loadLevel(idx){
     if(r>bestD){ bestD=r; bestA=a; }
   }
   setDir(bestA);
+}
+/* Fioles de vitalité : rangées alignées dans les couloirs, réapparition 20 s après ramassage. */
+function placeVials(){
+  let lines=0;
+  const hash=(x,y)=>((x*73856093)^(y*19349663))>>>0;
+  for(let y=1;y<MH-1&&lines<9;y++)for(let x=1;x<MW-7&&lines<9;x++){
+    if(hash(x,y)%29) continue;
+    let ok=true;
+    for(let k=0;k<7;k++) if(cell(x+k,y)!==0){ ok=false; break; }
+    if(!ok) continue;
+    for(let k=1;k<6;k++) items.push({x:x+k+.5,y:y+.5,kind:'vial',respawn:0});
+    lines++; x+=9;
+  }
+  for(let x=1;x<MW-1&&lines<16;x++)for(let y=1;y<MH-7&&lines<16;y++){
+    if(hash(y,x)%31) continue;
+    let ok=true;
+    for(let k=0;k<7;k++) if(cell(x,y+k)!==0){ ok=false; break; }
+    if(!ok) continue;
+    for(let k=1;k<6;k++) items.push({x:x+.5,y:y+k+.5,kind:'vial',respawn:0});
+    lines++; y+=9;
+  }
 }
 function buildTrainGroups(){
   tgrid=new Int16Array(MW*MH).fill(-1);
@@ -1472,6 +1507,7 @@ const SND={
   fireball(){ noise(.4,1200,.35,4); blast(.3,600,180,'sine',.15); },
   hurt(){ blast(.25,220,70,'square',.4); },
   pickup(){ blast(.09,660,660,'sine',.3); blast(.12,990,990,'sine',.3,.08); },
+  vial(){ blast(.06,1180,1180,'sine',.18); blast(.08,1560,1560,'sine',.14,.05); },
   gate(){ blast(.06,1400,1400,'square',.2); blast(.25,300,120,'square',.2,.09); },
   die(){ blast(.6,160,30,'sawtooth',.4); noise(.4,800,.3); },
   rumble(){ noise(2.8,140,.5,1); },
@@ -1546,8 +1582,10 @@ function fireWeapon(){
   }
   P.cool=Wd.cool; P.fireT=0; P[Wd.ammo]--;
   (P.weapon===2?SND.shotgun:P.weapon===3?SND.smg:SND.pistol)();
+  const spreadEff=Wd.spread*(1+P.bloom);
+  P.bloom=Math.min(3,P.bloom+Wd.bloom);
   for(let i=0;i<Wd.pellets;i++){
-    const spread=(Math.random()-.5)*2*Wd.spread;
+    const spread=(Math.random()-.5)*2*spreadEff;
     const c=Math.cos(spread), s=Math.sin(spread);
     const dx=P.dx*c-P.dy*s, dy=P.dx*s+P.dy*c;
     const wall=castRay(P.x,P.y,dx,dy,40).dist;
@@ -1664,8 +1702,15 @@ function updateTrains(dt){
 function updatePickups(){
   for(let i=items.length-1;i>=0;i--){
     const it=items[i];
+    if(it.respawn>0) continue;
     if(Math.hypot(it.x-P.x,it.y-P.y)>.65) continue;
     let ok=true;
+    if(it.kind==='vial'){
+      if(P.hp>=100) continue;
+      P.hp=Math.min(100,P.hp+4);
+      it.respawn=20; P.pickT=.18; SND.vial();
+      continue;
+    }
     if(it.kind==='medkit'){
       if(P.hp>=100) ok=false;
       else { P.hp=Math.min(100,P.hp+30); msg('Trousse de secours (+30)'); }
@@ -1710,13 +1755,14 @@ function updatePlayer(dt){
   let mx=0,my=0;
   if(keys['KeyW']||keys['ArrowUp']){ mx+=P.dx; my+=P.dy; }
   if(keys['KeyS']||keys['ArrowDown']){ mx-=P.dx; my-=P.dy; }
-  if(keys['KeyA']){ mx+=P.dy; my-=P.dx; }
-  if(keys['KeyD']){ mx-=P.dy; my+=P.dx; }
+  if(keys['KeyA']||keys['Home']){ mx+=P.dy; my-=P.dx; }   // Début = fn+← sur Mac
+  if(keys['KeyD']||keys['End']){ mx-=P.dy; my+=P.dx; }    // Fin = fn+→ sur Mac
   if(keys['ArrowLeft']) rot(-2.6*dt);
   if(keys['ArrowRight']) rot(2.6*dt);
   const l=Math.hypot(mx,my);
   if(l>0){ tryMove(P,P.x+mx/l*sp,P.y+my/l*sp,.22); P.bob+=sp*2.2; }
   P.cool-=dt; P.fireT+=dt; P.hurtT-=dt; P.pickT-=dt;
+  P.bloom=Math.max(0,P.bloom-dt*2.4);
   if((mouseDown&&document.pointerLockElement===screen)||keys['ControlLeft']||keys['Space']) fireWeapon();
 }
 function update(dt){
@@ -1724,6 +1770,7 @@ function update(dt){
   if(state!=='play') return;
   playT+=dt; ambT-=dt;
   if(ambT<=0){ ambT=16+Math.random()*20; SND.rumble(); }
+  for(const it of items) if(it.respawn>0) it.respawn-=dt;
   updatePlayer(dt); updateEnemies(dt); updateFires(dt); updateTrains(dt);
   updatePickups(); updateGatesAndExit(dt);
   for(const m of msgs) m.t-=dt;
@@ -1856,9 +1903,11 @@ function spriteList(){
   const out=[];
   for(const c of corpses) out.push({x:c.x,y:c.y,tex:c.tex,scale:c.scale,z:heightAt(c.x,c.y)});
   for(const it of items){
+    if(it.respawn>0) continue;
     const tex=it.kind==='medkit'?SPR.medkit:it.kind==='ammo'?SPR.ammo:
-      it.kind==='navigo'?SPR.navigo:it.kind==='smg'?SPR.smg:SPR.shotgun;
-    out.push({x:it.x,y:it.y,tex,scale:.42,z:heightAt(it.x,it.y)});
+      it.kind==='navigo'?SPR.navigo:it.kind==='smg'?SPR.smg:
+      it.kind==='vial'?SPR.vial:SPR.shotgun;
+    out.push({x:it.x,y:it.y,tex,scale:it.kind==='vial'?.3:.42,z:heightAt(it.x,it.y)});
   }
   for(const e of enemies){
     const S=SPR[e.type]; let tex;
@@ -1904,50 +1953,142 @@ function renderSprites(fog,eyeZ){
   }
 }
 
-/* ---------- armes à l'écran & HUD ---------- */
+/* ---------- armes à l'écran & HUD ----------
+   Visuels détaillés dessinés une fois dans des canvas cachés (mains gantées,
+   culasse, mires, reflets), puis composés avec balancement + recul. */
+function steelGrad(g,x0,y0,x1,y1){
+  const gr=g.createLinearGradient(x0,y0,x1,y1);
+  gr.addColorStop(0,'#14161b'); gr.addColorStop(.35,'#3f434c');
+  gr.addColorStop(.5,'#565b66'); gr.addColorStop(.65,'#3a3d45');
+  gr.addColorStop(1,'#101318'); return gr;
+}
+function glove(g,x,y,r,a){ // poing ganté (bleu marine agent)
+  g.save(); g.translate(x,y); g.rotate(a||0);
+  g.fillStyle='#1c2337'; g.beginPath(); g.ellipse(0,0,r,r*.8,0,0,7); g.fill();
+  g.fillStyle='#28324e';
+  for(let i=-1;i<=1;i++){ g.beginPath(); g.ellipse(i*r*.5,-r*.35,r*.26,r*.4,0,0,7); g.fill(); }
+  g.fillStyle='rgba(0,0,0,.25)'; g.fillRect(-r,r*.35,r*2,r*.35);
+  g.restore();
+}
+let WEAPART=null;
+function buildWeaponArt(){
+  const mk=(w,h,fx,fy,fn)=>({cv:mkCanvas(w,h,fn),fx,fy});
+  WEAPART=[
+  // 0 — clé à molette
+  mk(200,270,100,30,g=>{
+    g.translate(100,260);
+    g.fillStyle='#b3202a'; g.beginPath(); g.roundRect(-14,-96,28,86,9); g.fill(); // manche gainé
+    g.fillStyle='#8c1a22';
+    for(let y=-88;y<-20;y+=12) g.fillRect(-14,y,28,4);
+    g.fillStyle=steelGrad(g,-12,0,12,0); g.beginPath(); g.roundRect(-11,-176,22,84,4); g.fill();
+    g.beginPath(); g.ellipse(0,-182,26,20,-.15,0,7); g.fill(); // tête
+    g.fillStyle='#0e1014'; g.beginPath(); g.ellipse(2,-196,17,11,-.25,0,7); g.fill(); // ouverture
+    g.fillStyle=steelGrad(g,-20,0,20,0); g.fillRect(-24,-206,22,16); // mâchoire mobile
+    g.fillStyle='#2c2f36';
+    for(let y=-166;y<-140;y+=6) g.fillRect(9,y,7,3); // molette crantée
+    g.fillStyle='rgba(255,255,255,.16)'; g.fillRect(-9,-174,4,80);
+    glove(g,0,-32,24,0);
+  }),
+  // 1 — pistolet, tenue à deux mains
+  mk(240,240,120,44,g=>{
+    g.translate(120,238);
+    g.fillStyle='#2a2115'; g.beginPath(); g.roundRect(-16,-96,32,58,5); g.fill(); // poignée
+    g.fillStyle='rgba(0,0,0,.35)';
+    for(let y=-90;y<-46;y+=7) g.fillRect(-13,y,26,3); // stries grip
+    g.fillStyle=steelGrad(g,-24,0,24,0); g.beginPath(); g.roundRect(-24,-158,48,52,6); g.fill(); // culasse
+    g.fillStyle='#0e1014';
+    for(let x=8;x<22;x+=5) g.fillRect(x,-154,3,20); // serrations arrière
+    g.fillStyle='#0e1014'; g.beginPath(); g.roundRect(-14,-150,20,12,3); g.fill(); // fenêtre d'éjection
+    g.fillStyle='#101318'; g.fillRect(-24,-106,48,8); // rail
+    g.fillStyle='#191d24'; g.beginPath(); g.roundRect(-19,-98,38,18,4); g.fill(); // carcasse
+    g.fillStyle='#0b0d11'; g.beginPath(); g.arc(0,-76,15,0,7); g.fill(); // pontet
+    g.fillStyle='#191d24'; g.beginPath(); g.arc(0,-76,9,0,7); g.fill();
+    g.fillStyle='#14161b'; g.fillRect(-4,-166,8,8); // guidon
+    g.fillStyle='#e8e4d8'; g.fillRect(-2,-164,4,3); // point de mire
+    g.fillStyle='#14161b'; g.fillRect(-22,-162,8,5); g.fillRect(14,-162,8,5); // hausse
+    g.fillStyle='#0a0c10'; g.beginPath(); g.ellipse(0,-158,10,5,0,0,7); g.fill(); // bouche
+    g.fillStyle='rgba(255,255,255,.14)'; g.fillRect(-22,-156,5,46);
+    glove(g,-26,-46,22,.5); glove(g,20,-52,24,-.35);
+  }),
+  // 2 — fusil à pompe
+  mk(260,300,130,58,g=>{
+    g.translate(130,296);
+    g.fillStyle='#4b3621'; g.beginPath(); g.roundRect(-24,-92,48,72,8); g.fill(); // crosse pistol-grip
+    g.fillStyle='rgba(0,0,0,.3)';
+    for(let y=-84;y<-30;y+=9) g.fillRect(-20,y,40,4);
+    g.fillStyle=steelGrad(g,-26,0,26,0); g.beginPath(); g.roundRect(-26,-152,52,62,7); g.fill(); // boîtier
+    g.fillStyle='#0e1014'; g.beginPath(); g.roundRect(-18,-138,24,14,4); g.fill(); // fenêtre
+    g.fillStyle='#3a2c1c'; g.beginPath(); g.roundRect(-30,-192,60,34,10); g.fill(); // pompe bois
+    g.fillStyle='rgba(0,0,0,.35)';
+    for(let y=-186;y<-162;y+=7) g.fillRect(-26,y,52,3); // rainures pompe
+    g.fillStyle=steelGrad(g,-14,0,2,0); g.fillRect(-14,-262,13,72); // canon
+    g.fillStyle=steelGrad(g,1,0,15,0); g.fillRect(2,-256,12,66); // tube magasin
+    g.fillStyle='#0a0c10'; g.beginPath(); g.ellipse(-7,-262,7,4,0,0,7); g.fill();
+    g.beginPath(); g.ellipse(8,-256,6,3.5,0,0,7); g.fill();
+    g.fillStyle='#e8e4d8'; g.fillRect(-9,-268,4,4); // guidon bille
+    g.fillStyle='rgba(255,255,255,.13)'; g.fillRect(-13,-258,3,66);
+    glove(g,0,-176,25,0);       // main sur la pompe
+    glove(g,2,-52,24,-.2);      // main à la poignée
+    g.fillStyle='#8c6b3f'; g.fillRect(-30,-160,60,6); // bague avant du bois
+  }),
+  // 3 — pistolet-mitrailleur
+  mk(250,270,125,52,g=>{
+    g.translate(125,266);
+    g.fillStyle='#191d24'; g.beginPath(); g.roundRect(-15,-92,30,54,6); g.fill(); // poignée
+    g.fillStyle='rgba(0,0,0,.3)';
+    for(let y=-86,i=0;i<5;y+=8,i++) g.fillRect(-12,y,24,3);
+    g.fillStyle=steelGrad(g,-24,0,24,0); g.beginPath(); g.roundRect(-24,-172,48,84,7); g.fill(); // boîtier
+    g.fillStyle='#101318'; g.beginPath(); g.roundRect(-24,-120,48,10,3); g.fill();
+    // chargeur courbe
+    g.save(); g.translate(-6,-96); g.rotate(.32);
+    g.fillStyle=steelGrad(g,-10,0,10,0); g.beginPath(); g.roundRect(-11,0,22,64,6); g.fill();
+    g.fillStyle='rgba(0,0,0,.35)'; g.fillRect(-11,8,22,4); g.fillRect(-11,24,22,4); g.fillRect(-11,40,22,4);
+    g.restore();
+    // manchon perforé
+    g.fillStyle=steelGrad(g,-12,0,12,0); g.beginPath(); g.roundRect(-12,-236,24,66,9); g.fill();
+    g.fillStyle='#0a0c10';
+    for(let y=-228;y<-178;y+=13){ g.beginPath(); g.ellipse(-5,y,3.4,4.5,0,0,7); g.fill();
+      g.beginPath(); g.ellipse(6,y,3.4,4.5,0,0,7); g.fill(); }
+    g.fillStyle='#0a0c10'; g.beginPath(); g.ellipse(0,-236,8,4.5,0,0,7); g.fill(); // bouche
+    g.fillStyle='#14161b'; g.fillRect(-6,-246,12,8); // guidon protégé
+    g.fillStyle='#e8e4d8'; g.fillRect(-2,-244,4,3);
+    g.fillStyle='#14161b'; g.beginPath(); g.arc(0,-168,9,Math.PI,0); g.fill(); // œilleton
+    g.fillStyle='rgba(255,255,255,.12)'; g.fillRect(-21,-168,4,76);
+    glove(g,14,-50,23,-.3); glove(g,-16,-140,22,.4); // poignée + garde-main
+  }),
+  ];
+}
 function drawWeapon(){
+  if(!WEAPART) buildWeaponArt();
+  const S=1.42; // échelle d'affichage des armes
   const bob=Math.sin(P.bob)*14, bob2=Math.abs(Math.cos(P.bob))*10;
   const rec=P.fireT<.1?(1-P.fireT/.1)*46:0;
+  const art=WEAPART[P.weapon], cv=art.cv;
   sctx.save();
-  sctx.translate(480+bob,600-52+bob2+rec);
-  sctx.scale(2.4,2.4);
-  const w=P.weapon;
-  if(w>0&&P.fireT<.07){
-    const g=sctx.createRadialGradient(0,-62,3,0,-62,34);
-    g.addColorStop(0,'rgba(255,244,180,.95)'); g.addColorStop(.5,'rgba(255,170,40,.6)');
-    g.addColorStop(1,'rgba(255,120,20,0)');
-    sctx.fillStyle=g; sctx.beginPath(); sctx.arc(0,-62,34,0,7); sctx.fill();
-  }
-  if(w===0){ // clé de service : swing
+  if(P.weapon===0){ // swing de la clé
     const sw=P.fireT<.5?Math.sin(P.fireT/.5*Math.PI):0;
-    sctx.rotate(-.5+sw*1.3);
-    sctx.translate(26,6);
-    sctx.fillStyle='#5b6068'; sctx.fillRect(-6,-64,12,54);
-    sctx.fillStyle='#7d828c'; sctx.fillRect(-6,-64,4,54);
-    sctx.fillStyle='#5b6068';
-    sctx.beginPath(); sctx.arc(0,-66,13,0,7); sctx.fill();
-    sctx.fillStyle='#14161a'; sctx.fillRect(-9,-76,18,10);
-    sctx.fillStyle='#4b3621'; sctx.fillRect(-8,-12,16,20);
-  } else if(w===1){ // pistolet
-    sctx.fillStyle='#23252a'; sctx.fillRect(-14,-52,28,46);
-    sctx.fillStyle='#3a3d44'; sctx.fillRect(-11,-52,22,14);
-    sctx.fillStyle='#15161a'; sctx.fillRect(-5,-58,10,10);
-    sctx.fillStyle='#4b3621'; sctx.fillRect(-16,-14,32,26);
-    sctx.fillStyle='rgba(255,255,255,.08)'; sctx.fillRect(-14,-52,4,44);
-  } else if(w===2){ // fusil à pompe
-    sctx.fillStyle='#3a3d44'; sctx.fillRect(-20,-70,18,62);
-    sctx.fillStyle='#23252a'; sctx.fillRect(2,-70,16,62);
-    sctx.fillStyle='#15161a'; sctx.fillRect(-22,-76,42,10);
-    sctx.fillStyle='#4b3621'; sctx.fillRect(-26,-14,52,30);
-    sctx.fillStyle='#5d4527'; sctx.fillRect(-26,-14,52,8);
-    sctx.fillStyle='rgba(255,255,255,.07)'; sctx.fillRect(-20,-70,5,60);
-  } else { // PM
-    sctx.fillStyle='#2a2d33'; sctx.fillRect(-13,-58,26,40);
-    sctx.fillStyle='#1c1e23'; sctx.fillRect(-6,-66,12,10);
-    sctx.fillStyle='#3a3d44'; sctx.fillRect(-13,-58,6,40);
-    sctx.fillStyle='#15161a'; sctx.fillRect(-4,-18,10,22); // chargeur
-    sctx.fillStyle='#4b3621'; sctx.fillRect(-18,-18,12,22);
+    sctx.translate(480+bob+70,600+40+bob2);
+    sctx.rotate(-.35+sw*1.15);
+    sctx.drawImage(cv,-cv.width*S/2-70,-cv.height*S-40+90,cv.width*S,cv.height*S);
+    sctx.restore();
+    return;
   }
+  const ox=480-cv.width*S/2+bob, oy=600-(cv.height-34)*S+bob2+rec;
+  if(P.fireT<.07){ // flash de bouche : cœur + étoile
+    const fx2=ox+art.fx*S, fy2=oy+art.fy*S;
+    const g=sctx.createRadialGradient(fx2,fy2,3,fx2,fy2,44);
+    g.addColorStop(0,'rgba(255,248,200,.98)'); g.addColorStop(.4,'rgba(255,180,50,.75)');
+    g.addColorStop(1,'rgba(255,120,20,0)');
+    sctx.fillStyle=g; sctx.beginPath(); sctx.arc(fx2,fy2,44,0,7); sctx.fill();
+    sctx.fillStyle='rgba(255,235,160,.85)';
+    sctx.beginPath();
+    for(let i=0;i<8;i++){
+      const a=i*Math.PI/4+.4, r1=i%2?40:16;
+      sctx.lineTo(fx2+Math.cos(a)*r1,fy2+Math.sin(a)*r1);
+    }
+    sctx.fill();
+  }
+  sctx.drawImage(cv,ox,oy,cv.width*S,cv.height*S);
   sctx.restore();
 }
 function hudBar(){
@@ -2040,10 +2181,10 @@ function drawTitle(t){
   sctx.fillStyle='#8a8f9c'; sctx.font='600 17px Arial'; sctx.textAlign='center';
   sctx.fillText('Un FPS rétro dans les vraies profondeurs de Montparnasse et Châtelet',480,262);
   sctx.fillStyle='#E9E7DC'; sctx.font='14px Arial';
-  const lines=['ZQSD / WASD / flèches — se déplacer · Souris — viser · Clic — tirer',
-    '1 clé · 2 pistolet · 3 fusil à pompe · 4 PM — armes',
+  const lines=['ZQSD / WASD / flèches — se déplacer · fn+←/→ (Début/Fin) — pas latéral',
+    'Souris — viser · Clic — tirer · 1 clé · 2 pistolet · 3 pompe · 4 PM',
     'Tab — plan · Maj — courir · P — haute / basse définition',
-    'Plans et dénivelés réels reconstitués · les rames passent encore'];
+    'Fioles rouges : +4 santé, elles réapparaissent · les rames passent encore'];
   lines.forEach((l,i)=>sctx.fillText(l,480,320+i*24));
   if((t*2|0)&1){ sctx.fillStyle='#F5C518'; sctx.font='700 22px Arial';
     sctx.fillText('CLIQUEZ POUR PRENDRE VOTRE SERVICE',480,478); }
