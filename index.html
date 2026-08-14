@@ -1972,7 +1972,7 @@ function glove(g,x,y,r,a){ // poing ganté (bleu marine agent)
 }
 let WEAPART=null;
 function buildWeaponArt(){
-  const mk=(w,h,fx,fy,fn)=>({cv:mkCanvas(w,h,fn),fx,fy});
+  const mk=(w,h,fx,fy,fn,peek)=>({cv:mkCanvas(w,h,fn),fx,fy,peek});
   WEAPART=[
   // 0 — clé à molette
   mk(200,270,100,30,g=>{
@@ -1989,27 +1989,53 @@ function buildWeaponArt(){
     g.fillStyle='rgba(255,255,255,.16)'; g.fillRect(-9,-174,4,80);
     glove(g,0,-32,24,0);
   }),
-  // 1 — pistolet, tenue à deux mains
-  mk(240,240,120,44,g=>{
-    g.translate(120,238);
-    g.fillStyle='#2a2115'; g.beginPath(); g.roundRect(-16,-96,32,58,5); g.fill(); // poignée
-    g.fillStyle='rgba(0,0,0,.35)';
-    for(let y=-90;y<-46;y+=7) g.fillRect(-13,y,26,3); // stries grip
-    g.fillStyle=steelGrad(g,-24,0,24,0); g.beginPath(); g.roundRect(-24,-158,48,52,6); g.fill(); // culasse
-    g.fillStyle='#0e1014';
-    for(let x=8;x<22;x+=5) g.fillRect(x,-154,3,20); // serrations arrière
-    g.fillStyle='#0e1014'; g.beginPath(); g.roundRect(-14,-150,20,12,3); g.fill(); // fenêtre d'éjection
-    g.fillStyle='#101318'; g.fillRect(-24,-106,48,8); // rail
-    g.fillStyle='#191d24'; g.beginPath(); g.roundRect(-19,-98,38,18,4); g.fill(); // carcasse
-    g.fillStyle='#0b0d11'; g.beginPath(); g.arc(0,-76,15,0,7); g.fill(); // pontet
-    g.fillStyle='#191d24'; g.beginPath(); g.arc(0,-76,9,0,7); g.fill();
-    g.fillStyle='#14161b'; g.fillRect(-4,-166,8,8); // guidon
-    g.fillStyle='#e8e4d8'; g.fillRect(-2,-164,4,3); // point de mire
-    g.fillStyle='#14161b'; g.fillRect(-22,-162,8,5); g.fillRect(14,-162,8,5); // hausse
-    g.fillStyle='#0a0c10'; g.beginPath(); g.ellipse(0,-158,10,5,0,0,7); g.fill(); // bouche
-    g.fillStyle='rgba(255,255,255,.14)'; g.fillRect(-22,-156,5,46);
-    glove(g,-26,-46,22,.5); glove(g,20,-52,24,-.35);
-  }),
+  // 1 — pistolet : vue arrière plongée façon FPS 90s, acier sombre à reflets durs
+  mk(240,260,116,26,g=>{ /* peek 6 : montre le poing */
+    g.translate(124,258);
+    g.rotate(-.07);
+    // manche de l'uniforme au poignet
+    g.fillStyle='#141a2e'; g.beginPath();
+    g.moveTo(-6,4); g.lineTo(66,4); g.lineTo(52,-52); g.lineTo(10,-46); g.fill();
+    g.fillStyle='#0e1322'; g.fillRect(4,-52,52,9);
+    // canon/culasse qui s'éloigne : silhouette effilée vers le haut
+    const blk='#0b0d12', mid='#262a33', hi='rgba(240,244,250,.85)';
+    g.fillStyle=blk; g.beginPath();
+    g.moveTo(-17,-96); g.lineTo(-13,-208); g.lineTo(-5,-224);
+    g.lineTo(6,-224); g.lineTo(13,-206); g.lineTo(19,-96); g.fill();
+    // bouche entrevue tout en haut
+    g.fillStyle='#000'; g.beginPath(); g.ellipse(0,-223,6,3,0,0,7); g.fill();
+    g.fillStyle=mid; g.beginPath(); g.ellipse(0,-225,6,2.2,0,0,7); g.fill();
+    // flancs : reflets spéculaires en longues stries
+    g.fillStyle=hi; g.beginPath();
+    g.moveTo(-13,-100); g.lineTo(-10,-204); g.lineTo(-7,-204); g.lineTo(-9,-100); g.fill();
+    g.fillStyle='rgba(180,190,205,.35)'; g.beginPath();
+    g.moveTo(8,-110); g.lineTo(6,-196); g.lineTo(10,-196); g.lineTo(13,-110); g.fill();
+    // plaque arrière de culasse (face au joueur)
+    g.fillStyle=steelGrad(g,-20,0,20,0); g.beginPath(); g.roundRect(-20,-102,40,26,5); g.fill();
+    g.fillStyle='#08090c';
+    for(let x=-16;x<=13;x+=6) g.fillRect(x,-99,3,20); // serrations
+    // hausse à deux oreilles
+    g.fillStyle='#101318'; g.fillRect(-19,-108,12,7); g.fillRect(7,-108,12,7);
+    g.fillStyle='rgba(240,244,250,.6)'; g.fillRect(-16,-107,3,2); g.fillRect(13,-107,3,2);
+    // chien apparent
+    g.fillStyle='#14161c'; g.beginPath();
+    g.moveTo(-7,-76); g.lineTo(7,-76); g.lineTo(10,-62); g.lineTo(4,-56); g.lineTo(-4,-56); g.lineTo(-10,-62); g.fill();
+    g.fillStyle='#000'; g.beginPath(); g.ellipse(0,-68,4,6,0,0,7); g.fill();
+    // carcasse arrière au-dessus de la main
+    g.fillStyle='#15181f'; g.beginPath(); g.roundRect(-16,-58,32,16,4); g.fill();
+    g.fillStyle='rgba(240,244,250,.25)'; g.fillRect(-14,-56,4,10);
+    // poing ganté enveloppant la poignée, doigts face au joueur
+    g.fillStyle='#1c2337'; g.beginPath(); g.roundRect(-24,-46,52,42,16); g.fill();
+    g.fillStyle='#28324e';
+    for(let i=0;i<4;i++){ g.beginPath();
+      g.ellipse(-13+i*12,-34,6.4,10,0,0,7); g.fill(); }
+    g.fillStyle='rgba(0,0,0,.3)'; g.fillRect(-24,-18,52,6);
+    // pouce qui verrouille à gauche
+    g.fillStyle='#202a44'; g.beginPath();
+    g.ellipse(-22,-30,8,14,.5,0,7); g.fill();
+    // talon de poignée visible sous la main
+    g.fillStyle='#0e1014'; g.beginPath(); g.roundRect(-13,-6,30,10,3); g.fill();
+  },6),
   // 2 — fusil à pompe
   mk(260,300,130,58,g=>{
     g.translate(130,296);
@@ -2073,7 +2099,7 @@ function drawWeapon(){
     sctx.restore();
     return;
   }
-  const ox=480-cv.width*S/2+bob, oy=600-(cv.height-34)*S+bob2+rec;
+  const ox=480-cv.width*S/2+bob, oy=600-(cv.height-(art.peek??34))*S+bob2+rec;
   if(P.fireT<.07){ // flash de bouche : cœur + étoile
     const fx2=ox+art.fx*S, fy2=oy+art.fy*S;
     const g=sctx.createRadialGradient(fx2,fy2,3,fx2,fy2,44);
