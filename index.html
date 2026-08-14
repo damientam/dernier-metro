@@ -14,7 +14,7 @@
   #hint b{color:#F5C518;font-weight:600}
 </style>
 <div id="wrap"><canvas id="s" width="960" height="600"></canvas></div>
-<div id="hint"><b>ZQSD/WASD</b> se déplacer · <b>souris</b> viser · <b>clic</b> tirer · <b>1/2</b> armes · <b>Tab</b> plan · <b>Maj</b> courir · <b>F2</b> HD/SD</div>
+<div id="hint"><b>ZQSD/WASD</b> se déplacer · <b>souris</b> viser · <b>clic</b> tirer · <b>1/2</b> armes · <b>Tab</b> plan · <b>Maj</b> courir · <b>P</b> HD/SD</div>
 <script>
 'use strict';
 /* ==================== DERNIER MÉTRO — un FPS rétro dans les gares de Paris ==================== */
@@ -781,7 +781,7 @@ window.addEventListener('keydown',e=>{
   if(['Tab','Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
   keys[e.code]=true;
   if(e.code==='Tab') mapView=true;
-  if(e.code==='F2'&&!e.repeat){ e.preventDefault(); setHD(!HD); }
+  if((e.code==='KeyP'||e.code==='F2')&&!e.repeat){ e.preventDefault(); setHD(!HD); }
   if(e.code==='Digit1') P.weapon=0;
   if(e.code==='Digit2'&&P.hasShotgun) P.weapon=1;
   if(e.code==='Enter'){
@@ -1209,7 +1209,7 @@ function drawTitle(t){
   sctx.fillText('Un FPS rétro dans les entrailles de Montparnasse et Châtelet',480,272);
   sctx.fillStyle='#E9E7DC'; sctx.font='14px Arial';
   const lines=['ZQSD / WASD / flèches — se déplacer','Souris — viser · Clic — tirer (verrouille le pointeur)',
-    '1 / 2 — changer d\'arme · Tab — plan · Maj — courir','F2 — haute / basse définition · Échap — libérer la souris',
+    '1 / 2 — changer d\'arme · Tab — plan · Maj — courir','P — haute / basse définition · Échap — libérer la souris',
     'Plans réels des stations Montparnasse Bienvenüe et Châtelet'];
   lines.forEach((l,i)=>sctx.fillText(l,480,330+i*24));
   if((t*2|0)&1){ sctx.fillStyle='#F5C518'; sctx.font='700 22px Arial';
