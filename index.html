@@ -458,7 +458,7 @@ const MONSTERS={
 const WEAPONS=[
   {name:'CLÉ DE SERVICE', melee:true, dmg:26, range:1.7, cool:.5},
   {name:'PISTOLET RÉGLEMENTAIRE', ammo:'bullets', dmg:14, pellets:1, spread:.004, bloom:1, cool:.34},
-  {name:'FUSIL À POMPE', ammo:'shells', dmg:7, pellets:6, spread:.09, bloom:.3, cool:.9, flag:'hasShotgun'},
+  {name:'FUSIL À DEUX COUPS', ammo:'shells', dmg:7, pellets:12, spread:.11, bloom:.3, cool:1.5, flag:'hasShotgun', double:true},
   {name:'PM DE LA SÛRETÉ', ammo:'bullets', dmg:8, pellets:1, spread:.018, bloom:.45, cool:.09, flag:'hasSMG'},
 ];
 
@@ -1580,11 +1580,19 @@ function fireWeapon(){
     msg(Wd.ammo==='shells'?'Plus de cartouches !':'Plus de balles — la clé, en dernier recours (1).');
     P.cool=.4; return;
   }
-  P.cool=Wd.cool; P.fireT=0; P[Wd.ammo]--;
-  (P.weapon===2?SND.shotgun:P.weapon===3?SND.smg:SND.pistol)();
+  P.cool=Wd.cool; P.fireT=0;
+  let pellets=Wd.pellets;
+  if(Wd.double){ // les deux canons partent ensemble (ou un seul s'il ne reste qu'une cartouche)
+    const n=Math.min(2,P[Wd.ammo]);
+    P[Wd.ammo]-=n; pellets=6*n;
+    SND.shotgun(); if(n===2) SND.shotgun();
+  } else {
+    P[Wd.ammo]--;
+    (P.weapon===3?SND.smg:SND.pistol)();
+  }
   const spreadEff=Wd.spread*(1+P.bloom);
   P.bloom=Math.min(3,P.bloom+Wd.bloom);
-  for(let i=0;i<Wd.pellets;i++){
+  for(let i=0;i<pellets;i++){
     const spread=(Math.random()-.5)*2*spreadEff;
     const c=Math.cos(spread), s=Math.sin(spread);
     const dx=P.dx*c-P.dy*s, dy=P.dx*s+P.dy*c;
@@ -1721,7 +1729,7 @@ function updatePickups(){
       P.hasNavigo=true; msg('Pass Navigo trouvé ! Les portiques vous obéissent.');
     } else if(it.kind==='shotgun'){
       P.hasShotgun=true; P.shells=Math.min(40,P.shells+8); P.weapon=2;
-      msg('Fusil à pompe de la sûreté ferroviaire ! (touche 3)');
+      msg('Fusil à deux coups de la sûreté ferroviaire ! (touche 3)');
     } else if(it.kind==='smg'){
       P.hasSMG=true; P.bullets=Math.min(180,P.bullets+30); P.weapon=3;
       msg('Pistolet-mitrailleur de la sûreté ! (touche 4)');
@@ -2084,6 +2092,98 @@ function buildWeaponArt(){
   }),
   ];
 }
+/* Fusil à deux coups : viewmodel dessiné image par image — tir des deux canons,
+   puis bascule ouverte face au joueur, insertion des cartouches, fermeture. */
+function drawDoubleBarrel(bob,bob2){
+  const t=P.fireT;
+  const rec=t<.12?(1-t/.12)*44:0;
+  let u=-1, ang=0;
+  if(t>=.32&&t<1.42) u=(t-.32)/1.1;                  // phase de rechargement 0..1
+  if(u>=0) ang=Math.sin(Math.min(1,u*1.25)*Math.PI)*.7;
+  const open=u>=0?Math.sin(Math.min(1,Math.max(0,(u-.12)/.5))*Math.PI):0; // bascule
+  sctx.translate(480+bob+ang*62,600+bob2+rec+ang*30);
+  sctx.rotate(ang*.42);
+  sctx.scale(1.42,1.42);
+  const blk='#0c0e13', mid='#2b2f38', hi='rgba(238,242,248,.8)';
+  if(t<.07){ // double flash aux bouches
+    for(const mx of [-17,17]){
+      const g=sctx.createRadialGradient(mx,-252,2,mx,-252,30);
+      g.addColorStop(0,'rgba(255,248,200,.98)'); g.addColorStop(.45,'rgba(255,175,45,.7)');
+      g.addColorStop(1,'rgba(255,120,20,0)');
+      sctx.fillStyle=g; sctx.beginPath(); sctx.arc(mx,-252,30,0,7); sctx.fill();
+      sctx.fillStyle='rgba(255,235,160,.85)'; sctx.beginPath();
+      for(let i=0;i<8;i++){ const a=i*Math.PI/4+.4, r1=i%2?26:10;
+        sctx.lineTo(mx+Math.cos(a)*r1,-252+Math.sin(a)*r1); }
+      sctx.fill();
+    }
+  }
+  if(open>.4){
+    // ---- bascule ouverte : les deux chambres face au joueur ----
+    // canons rabattus vers l'avant-bas
+    sctx.save(); sctx.translate(0,-96); sctx.rotate(-.9-open*.5);
+    sctx.fillStyle=blk; sctx.beginPath(); sctx.roundRect(-30,-6,26,120,9); sctx.fill();
+    sctx.beginPath(); sctx.roundRect(4,-6,26,120,9); sctx.fill();
+    sctx.fillStyle=hi; sctx.fillRect(-27,0,3,108);
+    sctx.restore();
+    // tranche de la bascule + chambres
+    sctx.fillStyle=steelGrad(sctx,-40,0,40,0);
+    sctx.beginPath(); sctx.roundRect(-42,-124,84,58,10); sctx.fill();
+    for(const mx of [-17,17]){
+      sctx.fillStyle='#43474f'; sctx.beginPath(); sctx.arc(mx,-96,15,0,7); sctx.fill();
+      sctx.fillStyle='#101318'; sctx.beginPath(); sctx.arc(mx,-96,12,0,7); sctx.fill();
+      if(u>.42&&u<.88){ // cartouches glissées dans les chambres
+        sctx.fillStyle='#c22f2f'; sctx.beginPath(); sctx.arc(mx,-96,10,0,7); sctx.fill();
+        sctx.fillStyle='#d8b25a'; sctx.beginPath(); sctx.arc(mx,-96,5.5,0,7); sctx.fill();
+        sctx.fillStyle='#8a6a2a'; sctx.beginPath(); sctx.arc(mx,-96,2.2,0,7); sctx.fill();
+      } else { sctx.fillStyle='#000'; sctx.beginPath(); sctx.arc(mx,-96,9,0,7); sctx.fill(); }
+    }
+    // main qui insère les cartouches
+    if(u>.3&&u<.85){
+      const hy=-96+Math.sin((u-.3)/.55*Math.PI)*-26;
+      glove(sctx,30,hy+34,22,-.6);
+      if(u<.55){ sctx.fillStyle='#c22f2f';
+        sctx.save(); sctx.translate(34,hy+16); sctx.rotate(.35);
+        sctx.beginPath(); sctx.roundRect(-5,-16,10,22,4); sctx.fill();
+        sctx.fillStyle='#d8b25a'; sctx.fillRect(-5,2,10,5); sctx.restore(); }
+    }
+    // poignée + main sous la bascule
+    sctx.fillStyle='#4b3621'; sctx.beginPath(); sctx.roundRect(-20,-70,44,52,10); sctx.fill();
+    glove(sctx,-2,-26,25,.1);
+  } else {
+    // ---- vue normale : deux canons jumelés vus de l'arrière ----
+    sctx.fillStyle='#3a2c1c'; sctx.beginPath(); sctx.roundRect(-34,-152,68,44,10); sctx.fill(); // bois avant
+    sctx.fillStyle='rgba(0,0,0,.32)';
+    for(let y=-146;y<-114;y+=8) sctx.fillRect(-30,y,60,3);
+    // canons
+    sctx.fillStyle=blk;
+    sctx.beginPath(); sctx.roundRect(-31,-266,27,122,10); sctx.fill();
+    sctx.beginPath(); sctx.roundRect(4,-266,27,122,10); sctx.fill();
+    sctx.fillStyle='#000'; sctx.fillRect(-3,-260,6,112); // gorge centrale
+    sctx.fillStyle=hi; sctx.fillRect(-28,-260,3,112);
+    sctx.fillStyle='rgba(200,208,220,.3)'; sctx.fillRect(7,-258,3,106);
+    sctx.fillStyle=mid; sctx.beginPath(); sctx.ellipse(-17,-264,10,4,0,0,7); sctx.fill();
+    sctx.beginPath(); sctx.ellipse(17,-264,10,4,0,0,7); sctx.fill();
+    sctx.fillStyle='#000'; sctx.beginPath(); sctx.ellipse(-17,-265,6,2.6,0,0,7); sctx.fill();
+    sctx.beginPath(); sctx.ellipse(17,-265,6,2.6,0,0,7); sctx.fill();
+    sctx.fillStyle='#e8e4d8'; sctx.fillRect(-2,-270,4,4); // bille de visée
+    // bloc de culasse + chiens jumeaux
+    sctx.fillStyle=steelGrad(sctx,-36,0,36,0);
+    sctx.beginPath(); sctx.roundRect(-38,-112,76,34,8); sctx.fill();
+    sctx.fillStyle='#08090c';
+    for(const mx of [-15,15]){
+      sctx.beginPath();
+      sctx.moveTo(mx-6,-112); sctx.lineTo(mx+6,-112); sctx.lineTo(mx+8,-98);
+      sctx.lineTo(mx+3,-92); sctx.lineTo(mx-3,-92); sctx.lineTo(mx-8,-98); sctx.fill();
+    }
+    sctx.fillStyle='rgba(238,242,248,.35)'; sctx.fillRect(-34,-110,4,28);
+    // crosse vers le bas-droite + mains
+    sctx.fillStyle='#4b3621'; sctx.beginPath();
+    sctx.moveTo(-12,-80); sctx.lineTo(30,-80); sctx.lineTo(58,8); sctx.lineTo(6,8); sctx.fill();
+    sctx.fillStyle='rgba(0,0,0,.25)'; sctx.fillRect(-6,-52,52,7);
+    glove(sctx,0,-128,26,0);   // main sur le bois avant
+    glove(sctx,26,-42,25,-.25); // main à la poignée
+  }
+}
 function drawWeapon(){
   if(!WEAPART) buildWeaponArt();
   const S=1.42; // échelle d'affichage des armes
@@ -2099,6 +2199,7 @@ function drawWeapon(){
     sctx.restore();
     return;
   }
+  if(P.weapon===2){ drawDoubleBarrel(bob,bob2); sctx.restore(); return; }
   const ox=480-cv.width*S/2+bob, oy=600-(cv.height-(art.peek??34))*S+bob2+rec;
   if(P.fireT<.07){ // flash de bouche : cœur + étoile
     const fx2=ox+art.fx*S, fy2=oy+art.fy*S;
@@ -2208,7 +2309,7 @@ function drawTitle(t){
   sctx.fillText('Un FPS rétro dans les vraies profondeurs de Montparnasse et Châtelet',480,262);
   sctx.fillStyle='#E9E7DC'; sctx.font='14px Arial';
   const lines=['ZQSD / WASD / flèches — se déplacer · fn+←/→ (Début/Fin) — pas latéral',
-    'Souris — viser · Clic — tirer · 1 clé · 2 pistolet · 3 pompe · 4 PM',
+    'Souris — viser · Clic — tirer · 1 clé · 2 pistolet · 3 deux-coups · 4 PM',
     'Tab — plan · Maj — courir · P — haute / basse définition',
     'Fioles rouges : +4 santé, elles réapparaissent · les rames passent encore'];
   lines.forEach((l,i)=>sctx.fillText(l,480,320+i*24));
